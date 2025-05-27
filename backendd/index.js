@@ -1,71 +1,70 @@
-const path = require('path');
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const bodyParser = require('body-parser');
-const mongoose = require('./db'); // Make sure this connects correctly
+const mongoose = require('./db');  // your mongoose connection file
 const Booking = require('./models/Booking');
 const nodemailer = require('nodemailer');
 
 const app = express();
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
 
 app.use(cors());
-// Serve static files from frontend
-app.use(express.static(path.join(__dirname, 'frontend/dist'))); // Adjust path if needed
-
-app.get('*', (req, res) => {
-  res.sendFile(path.resolve(__dirname, 'frontend', 'dist', 'index.html'));
-});
-
 app.use(bodyParser.json());
 
-app.get('/', (req, res) => {
-  res.send("Hello from new project");
-});
+// Serve frontend static files
+app.use(express.static(path.join(__dirname, '../frontend/dist')));
 
+// API route for booking appointment
 app.post('/api/appointments', async (req, res) => {
-  const { name, email, phone, department, day, time } = req.body;
+  const { name, email, phone, department, date, time } = req.body;  // <-- use date here
 
-  if (!name || !email || !phone || !department || !day || !time) {
-    return res.status(400).json({ error: "All fields are required." });
+  if (!name || !email || !phone || !department || !date || !time) {
+    return res.status(400).json({ error: 'All fields required' });
   }
 
   try {
-    const newBooking = new Booking({ name, email, phone, department, day, time });
+    // Check if appointment with same department, date, and time exists
+    const existingBooking = await Booking.findOne({ department, date, time });
+    if (existingBooking) {
+      return res.status(409).json({ error: 'This appointment slot is already booked for this department. Please choose a different time or date.' });
+    }
+
+    const newBooking = new Booking({ name, email, phone, department, date, time });
     const savedBooking = await newBooking.save();
 
-    // Email sending
-    let transporter = nodemailer.createTransport({
+    // Nodemailer config
+    const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        user: 'ahsanirfan141614@gmail.com',      // Replace with your Gmail
-        pass: 'kwbz pmew bgcg uiqr'         // Use Gmail App Password
+        user: 'ah4642767@gmail.com',
+        pass: 'czekiqwptefmdtni'  // use your app password here
       }
     });
 
-    let mailOptions = {
-      from: 'yourgmail@gmail.com',
+    const mailOptions = {
+      from: 'ah4642767@gmail.com',
       to: email,
       subject: 'Appointment Confirmation',
-      text: `Hello ${name},\n\nYour appointment has been successfully booked.\n\nDepartment: ${department}\nDay: ${day}\nTime: ${time}\n\nThank you!\nHospital Team`
+      text: `Hello ${name},\n\nYour appointment is confirmed.\n\n${department}, ${date} at ${time}\n\nThank you!`
     };
 
-    // Await sendMail to catch errors properly
     await transporter.sendMail(mailOptions);
 
-    res.status(201).json({ message: 'Appointment booked successfully, confirmation email sent.', booking: savedBooking });
-
-  } catch (error) {
-    console.error("Booking or Email error:", error);
-
-    // Customize error message based on error type
-    if (error.response && error.response.includes('Invalid login')) {
-      return res.status(500).json({ error: 'Email authentication failed. Check your Gmail credentials or app password.' });
-    }
-
-    res.status(500).json({ error: 'Server error. Could not book appointment or send email.' });
+    res.status(201).json({ message: 'Booked & Email Sent', booking: savedBooking });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server Error' });
   }
 });
+
+// Serve frontend fallback route
+app.get('*', (req, res) => {
+  res.sendFile(path.resolve(__dirname, '../frontend/dist/index.html'));
+});
+
+app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
