@@ -10,7 +10,6 @@ const departments = [
   'Radiology',
 ];
 
-const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const times = ['09:00 AM', '10:30 AM', '12:00 PM', '02:00 PM', '04:00 PM'];
 
 const Appointment = () => {
@@ -19,7 +18,7 @@ const Appointment = () => {
     email: '',
     phone: '',
     department: '',
-    day: '',
+    date: '',
     time: '',
   });
 
@@ -33,8 +32,12 @@ const Appointment = () => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
+  const isFormValid = formData.name && formData.email && formData.phone && formData.department && formData.date && formData.time;
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!isFormValid) return; // extra safety check
 
     try {
       const response = await fetch('http://localhost:5000/api/appointments', {
@@ -45,13 +48,13 @@ const Appointment = () => {
 
       if (response.ok) {
         const data = await response.json();
-        alert(`Appointment booked successfully!\n\nName: ${data.booking.name}\nDate: ${data.booking.day}\nTime: ${data.booking.time}`);
+        alert(`Appointment booked successfully!\n\nName: ${data.booking.name}\nDate: ${data.booking.date}\nTime: ${data.booking.time}`);
         setFormData({
           name: '',
           email: '',
           phone: '',
           department: '',
-          day: '',
+          date: '',
           time: '',
         });
       } else {
@@ -64,9 +67,7 @@ const Appointment = () => {
   };
 
   return (
-    <div
-      className="min-h-screen flex flex-col md:flex-row bg-white font-serif overflow-hidden"
-    >
+    <div className="min-h-screen flex flex-col md:flex-row bg-white font-serif overflow-hidden">
       {/* Image Side */}
       <div className="md:w-1/2 w-full flex items-center justify-center p-6 md:p-10 h-64 md:h-auto">
         <img
@@ -78,15 +79,9 @@ const Appointment = () => {
 
       {/* Form Side */}
       <div
-        className={`md:w-1/2 w-full flex items-center justify-center p-4 sm:p-6 md:p-10 transition-opacity duration-1000 ${
-          fadeIn ? 'opacity-100' : 'opacity-0'
-        }`}
+        className={`md:w-1/2 w-full flex items-center justify-center p-4 sm:p-6 md:p-10 transition-opacity duration-1000 ${fadeIn ? 'opacity-100' : 'opacity-0'}`}
       >
-        <form
-          onSubmit={handleSubmit}
-          className="w-full max-w-md"
-          style={{ backgroundColor: 'transparent' }}
-        >
+        <form onSubmit={handleSubmit} className="w-full max-w-md">
           <h2 className="text-2xl sm:text-3xl font-semibold mb-6 sm:mb-8 text-red-800 border-b border-gray-300 pb-2 sm:pb-3">
             Book Appointment
           </h2>
@@ -145,36 +140,25 @@ const Appointment = () => {
                 required
                 className="mt-1 block w-full rounded-md border border-gray-300 shadow-sm cursor-pointer focus:border-blue-500 focus:ring focus:ring-blue-300 focus:ring-opacity-50 bg-transparent text-gray-900"
               >
-                <option value="" disabled>
-                  Select Department
-                </option>
-                {departments.map((dep) => (
-                  <option key={dep} value={dep}>
-                    {dep}
-                  </option>
+                <option value="" disabled>Select Department</option>
+                {departments.map(dep => (
+                  <option key={dep} value={dep}>{dep}</option>
                 ))}
               </select>
             </label>
 
-            {/* Day */}
+            {/* Date */}
             <label className="block">
-              <span className="text-gray-700 font-medium">Day</span>
-              <select
-                name="day"
-                value={formData.day}
+              <span className="text-gray-700 font-medium">Date</span>
+              <input
+                type="date"
+                name="date"
+                value={formData.date}
                 onChange={handleChange}
                 required
+                min={new Date().toISOString().split('T')[0]}  // disable past dates
                 className="mt-1 block w-full rounded-md border border-gray-300 shadow-sm cursor-pointer focus:border-blue-500 focus:ring focus:ring-blue-300 focus:ring-opacity-50 bg-transparent text-gray-900"
-              >
-                <option value="" disabled>
-                  Select Day
-                </option>
-                {days.map((day) => (
-                  <option key={day} value={day}>
-                    {day}
-                  </option>
-                ))}
-              </select>
+              />
             </label>
 
             {/* Time */}
@@ -187,13 +171,9 @@ const Appointment = () => {
                 required
                 className="mt-1 block w-full rounded-md border border-gray-300 shadow-sm cursor-pointer focus:border-blue-500 focus:ring focus:ring-blue-300 focus:ring-opacity-50 bg-transparent text-gray-900"
               >
-                <option value="" disabled>
-                  Select Time
-                </option>
-                {times.map((time) => (
-                  <option key={time} value={time}>
-                    {time}
-                  </option>
+                <option value="" disabled>Select Time</option>
+                {times.map(time => (
+                  <option key={time} value={time}>{time}</option>
                 ))}
               </select>
             </label>
@@ -202,7 +182,10 @@ const Appointment = () => {
           {/* Submit */}
           <button
             type="submit"
-            className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition"
+            disabled={!isFormValid}
+            className={`w-full py-3 rounded-lg font-semibold transition ${
+              isFormValid ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-gray-400 cursor-not-allowed text-gray-700'
+            }`}
           >
             Confirm Appointment
           </button>
@@ -213,3 +196,4 @@ const Appointment = () => {
 };
 
 export default Appointment;
+
