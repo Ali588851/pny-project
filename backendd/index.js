@@ -2,7 +2,9 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const bodyParser = require('body-parser');
-const mongoose = require('./db');  // your mongoose connection file
+require('dotenv').config();
+
+const mongoose = require('./db');  // just import mongoose connection (no connect here)
 const Booking = require('./models/Booking');
 const nodemailer = require('nodemailer');
 
@@ -12,38 +14,39 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(bodyParser.json());
 
-// Serve frontend static files
 app.use(express.static(path.join(__dirname, '../frontend/dist')));
 
-// API route for booking appointment
 app.post('/api/appointments', async (req, res) => {
-  const { name, email, phone, department, date, time } = req.body;  // <-- use date here
+  const { name, email, phone, department, date, time } = req.body;
 
   if (!name || !email || !phone || !department || !date || !time) {
     return res.status(400).json({ error: 'All fields required' });
   }
 
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return res.status(400).json({ error: 'Invalid email format' });
+  }
+
   try {
-    // Check if appointment with same department, date, and time exists
     const existingBooking = await Booking.findOne({ department, date, time });
     if (existingBooking) {
-      return res.status(409).json({ error: 'This appointment slot is already booked for this department. Please choose a different time or date.' });
+      return res.status(409).json({ error: 'This slot is already booked.' });
     }
 
     const newBooking = new Booking({ name, email, phone, department, date, time });
     const savedBooking = await newBooking.save();
 
-    // Nodemailer config
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        user: 'ah4642767@gmail.com',
-        pass: 'czekiqwptefmdtni'  // use your app password here
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
       }
     });
 
     const mailOptions = {
-      from: 'ah4642767@gmail.com',
+      from: process.env.EMAIL_USER,
       to: email,
       subject: 'Appointment Confirmation',
       text: `Hello ${name},\n\nYour appointment is confirmed.\n\n${department}, ${date} at ${time}\n\nThank you!`
@@ -53,19 +56,13 @@ app.post('/api/appointments', async (req, res) => {
 
     res.status(201).json({ message: 'Booked & Email Sent', booking: savedBooking });
   } catch (err) {
-    console.error(err);
+    console.error("Error:", err.message);
     res.status(500).json({ error: 'Server Error' });
   }
 });
 
-// Serve frontend fallback route
 app.get('*', (req, res) => {
   res.sendFile(path.resolve(__dirname, '../frontend/dist/index.html'));
 });
 
 app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
-
-
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-});
